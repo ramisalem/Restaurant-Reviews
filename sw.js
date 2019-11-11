@@ -1,4 +1,4 @@
-var cacheName = "v1.0";
+var cacheName = "v1";
 var cacheFiles = [
 	'/',
 	'/css/styles.css',
@@ -45,12 +45,11 @@ self.addEventListener('install', function(event) {
 			return cache.addAll(cacheFiles);
 		})
 	)
-});
+})
 
 /**
  * @description Activate the service worker and listen for the activation.
  */
-
 self.addEventListener('activate', function(event) {
 	console.log("[Service Worker] Activated");
 
@@ -78,31 +77,52 @@ self.addEventListener('activate', function(event) {
  * @description Fetch the data from the given URL.
  */
 self.addEventListener('fetch', function(event) {
-	console.log(" Service Worker Fetching", event.request.url);
+	console.log("[Service Worker] Fetching", event.request.url);
 	/**
 	 * @description Check in the cache if the cached URL/file and the requested
 	 * URL/file match. Then respond appropriately to the outcome.
 	 */
+	
 	event.respondWith(
-		caches.match(event.request)
-			.then(function(response) {
-				/**
-				 * @description If the requested URL/file is found in the cache, log out
-				 * a message and return the cached version.
-				 * There is no need to fetch it again!
-				 */
-				 if (response) {
-					console.log("[ServiceWorker] Found in cache", event.request.url);
-					return response;
-				}
-				/**
-				 * @description If the requested URL/file is not in the cache yet, go
-				 * ahead and fetch the file!
-				 */
-				return fetch(event.request);
-			})
-			.catch(function(error) {
-				console.log("Error fetching and caching new data", error);
-			})
-	)
+
+		// check for a match to the request in the cache
+		// {ignorSearch: true} A Boolean that specifies whether to ignore the query string in the URL.  For example, if set to true the ?value=bar part of http://foo.com/?value=bar would be ignored when performing a match. It defaults to false.
+		caches.match(event.request, {ignoreSearch: true}).then(response => {
+	
+		  // if the data already exists in the cache
+		  if (response) {
+	
+			// log to the console that we found a match and what is was we found
+			// console.log('Found response in cache:', response);
+	
+			// return the data we found in the cache
+			return response;
+		  }
+	
+		  // if we didn't find a match, then log to the console that this is something new and we need to go get it from the network
+		  // console.log('No response found in cache. About to fetch from network...');
+	
+		  // Fetch it from the network
+		  return fetch(event.request).then(response => {
+			// log to the console what we got from the network
+			// console.log('Response from network is:', response);
+	
+			// since it wasn't found in the cache, lets just add it now
+			return caches.open(cacheName).then(cache => {
+			  cache.put(event.request, response.clone());
+	
+			  // now return what we fetched to the page
+			  return response;
+			});
+	
+	
+	
+			// on network error
+		  }).catch(err => {
+			// console.error('Fetching failed:', err);
+	
+			throw err;
+		  });
+		})
+	  );
 });
